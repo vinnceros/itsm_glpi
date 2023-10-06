@@ -285,7 +285,8 @@ class Html extends \GLPITestCase
             'PassiveDCEquipment',
             'Unmanaged',
             'Cable',
-            'Item_DeviceSimcard'
+            'Glpi\Asset\Asset',
+            'Item_DeviceSimcard',
         ];
         $this->string($menu['assets']['title'])->isIdenticalTo('Assets');
         $this->array($menu['assets']['types'])->isIdenticalTo($expected);
@@ -352,6 +353,7 @@ class Html extends \GLPITestCase
         $this->array($menu['admin']['types'])->isIdenticalTo($expected);
 
         $expected = [
+            'Glpi\Asset\AssetDefinition',
             'CommonDropdown',
             'CommonDevice',
             'Notification',

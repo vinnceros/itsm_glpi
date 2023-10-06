@@ -688,6 +688,13 @@ final class QueryBuilder implements SearchInputInterface
             }
         }
 
+        if (method_exists($itemtype, 'getSystemCriteria')) {
+            foreach ($itemtype::getSystemCriteria() as $system_criterion) {
+                $system_criterion['_hidden'] = true;
+                $params['criteria'][] = $system_criterion;
+            }
+        }
+
         return $params;
     }
 

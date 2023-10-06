@@ -166,8 +166,19 @@ window.GLPI.Search.Table = class Table extends GenericView {
         try {
             const sort_state = this.getSortState();
             const limit = $(form_el).find('select.search-limit-dropdown').first().val();
-            const search_form_values = $(ajax_container).closest('.search-container').find('.search-form-container').serializeArray();
             let search_criteria = {};
+            const search_form = $(ajax_container).closest('.search-container').find('.search-form-container');
+
+            // Ensure that parameters existing in form target URL are sent to AJAX queries too
+            const target = search_form.attr('action');
+            if (target.indexOf('?') !== -1) {
+                const target_params = new URLSearchParams(target.substr(target.indexOf('?')));
+                for (const k of target_params.keys()) {
+                    search_criteria[k] = target_params.get(k);
+                }
+            }
+
+            const search_form_values = search_form.serializeArray();
             search_form_values.forEach((v) => {
                 search_criteria[v['name']] = v['value'];
             });

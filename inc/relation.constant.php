@@ -101,6 +101,10 @@ $RELATION = [
         'glpi_appliances' => 'appliancetypes_id'
     ],
 
+    'glpi_assets_assetdefinitions' => [
+        'glpi_assets_assets' => 'assets_assetdefinitions_id',
+    ],
+
     'glpi_databaseinstancetypes' => [
         'glpi_databaseinstances' => 'databaseinstancetypes_id'
     ],
@@ -506,6 +510,7 @@ $RELATION = [
         'glpi_apiclients'                  => 'entities_id',
         'glpi_appliances'                  => 'entities_id',
         'glpi_appliancetypes'              => 'entities_id',
+        'glpi_assets_assets'               => 'entities_id',
         'glpi_budgets'                     => 'entities_id',
         'glpi_businesscriticities'         => 'entities_id',
         'glpi_cables'                      => 'entities_id',

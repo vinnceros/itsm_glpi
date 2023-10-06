@@ -54,7 +54,7 @@ describe('Search Table', () => {
     });
     $(document.body).append(`
     <div class="search-container">
-        <form class="search-form-container">
+        <form class="search-form-container" action="/front/computer.php">
             <input name="criteria[0][link]" value="AND"/>
             <input name="criteria[0][field]" value="view"/>
             <input name="criteria[0][searchtype]" value="contains"/>
