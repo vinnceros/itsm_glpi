@@ -37,6 +37,7 @@
  * @var array $CFG_GLPI
  */
 
+use Glpi\Asset\Asset;
 use Glpi\Asset\AssetDefinition;
 use Glpi\Event;
 use Glpi\Http\Response;
@@ -44,16 +45,18 @@ use Glpi\Http\Response;
 include('../../inc/includes.php');
 
 $definition_fkey = AssetDefinition::getForeignKeyField();
-$definition_id   = $_GET[$definition_fkey] ?? null;
-$definition      = new AssetDefinition();
-$classname       = $definition->getFromDB($definition_id) ? $definition->getConcreteClassName() : null;
-
-if ($classname === null || !class_exists($classname)) {
-    Response::sendError(400, 'Bad request', Response::CONTENT_TYPE_TEXT_HTML);
+if (array_key_exists('id', $_REQUEST)) {
+    $asset         = Asset::getById($_REQUEST['id']);
+} else {
+    $definition_id = $_GET[$definition_fkey] ?? null;
+    $definition    = new AssetDefinition();
+    $classname     = $definition->getFromDB($definition_id) ? $definition->getConcreteClassName() : null;
+    $asset         = $classname !== null && class_exists($classname) ? new $classname() : null;
 }
 
-/** @var \Glpi\Asset\Asset $asset */
-$asset = new $classname();
+if ($asset === null ) {
+    Response::sendError(400, 'Bad request', Response::CONTENT_TYPE_TEXT_HTML);
+}
 
 if (isset($_POST['add'])) {
     $asset->check(-1, CREATE, $_POST);
@@ -122,5 +125,5 @@ if (isset($_POST['add'])) {
 } else {
     $id = (int)($_GET['id'] ?? null);
     $menus = ['assets', $asset::class];
-    $asset->displayFullPageForItem($id, $menus, [$definition_fkey => $definition_id]);
+    $asset->displayFullPageForItem($id, $menus, [$definition_fkey => $asset::getDefinition()->getID()]);
 }

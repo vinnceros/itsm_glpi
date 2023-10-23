@@ -50,7 +50,7 @@ abstract class Asset extends CommonDBTM
      *
      * @return AssetDefinition
      */
-    abstract protected static function getDefinition(): AssetDefinition;
+    abstract public static function getDefinition(): AssetDefinition;
 
     public static function getTypeName($nb = 0)
     {
@@ -86,6 +86,47 @@ abstract class Asset extends CommonDBTM
             . AssetDefinition::getForeignKeyField()
             . '='
             . static::getDefinition()->getID();
+    }
+
+    public static function getFormURLWithID($id = 0, $full = true)
+    {
+        return Toolbox::getItemTypeFormURL(self::class, $full) . '?id=' . $id;
+    }
+
+    public static function getById(?int $id)
+    {
+        /** @var \DBmysql $DB */
+        global $DB;
+
+        if ($id === null) {
+            return false;
+        }
+
+        $definition_request = [
+            'INNER JOIN' => [
+                self::getTable()  => [
+                    'ON'  => [
+                        self::getTable()            => AssetDefinition::getForeignKeyField(),
+                        AssetDefinition::getTable() => AssetDefinition::getIndexName(),
+                    ]
+                ],
+            ],
+            'WHERE' => [
+                self::getTableField(self::getIndexName()) => $id,
+            ],
+        ];
+        $definition = new AssetDefinition();
+        if (!$definition->getFromDBByRequest($definition_request)) {
+            return false;
+        }
+
+        $asset_class = $definition->getConcreteClassName(true);
+        $asset = new $asset_class();
+        if (!$asset->getFromDB($id)) {
+            return false;
+        }
+
+        return $asset;
     }
 
     public static function canView()

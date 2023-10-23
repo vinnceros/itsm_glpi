@@ -169,7 +169,7 @@ namespace Glpi\Asset;
 
 final class {$definition->getConcreteClassName(false)} extends Asset
 {
-    protected static function getDefinition(): AssetDefinition
+    public static function getDefinition(): AssetDefinition
     {
         \$definition = new AssetDefinition();
         \$definition->fields = {$definition_fields};

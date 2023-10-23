@@ -123,7 +123,7 @@ final class AssetDefinition extends CommonDBTM
      * @param bool $with_namespace
      * @return string|null
      */
-    public function getConcreteClassName(bool $with_namespace = true): ?string
+    public function getConcreteClassName(bool $with_namespace = true): string
     {
         return sprintf(
             ($with_namespace ? 'Glpi\\Asset\\' : '') . 'Asset%s',
