@@ -43,11 +43,6 @@ final class AssetDefinitionManager
     private static ?AssetDefinitionManager $instance = null;
 
     /**
-     * Classes files directory.
-     */
-    private string $classes_dir;
-
-    /**
      * Definitions cache.
      */
     private array $definitions_data;
@@ -55,9 +50,8 @@ final class AssetDefinitionManager
     /**
      * Singleton constructor
      */
-    private function __construct(string $classes_dir = GLPI_CACHE_DIR . '/assets')
+    private function __construct()
     {
-        $this->classes_dir = $classes_dir;
     }
 
     /**
@@ -65,10 +59,10 @@ final class AssetDefinitionManager
      *
      * @return AssetDefinitionManager
      */
-    public static function getInstance(string $classes_dir = GLPI_CACHE_DIR . '/assets'): self
+    public static function getInstance(): self
     {
         if (!self::$instance) {
-            self::$instance = new self($classes_dir);
+            self::$instance = new self();
         }
 
         return self::$instance;
@@ -99,7 +93,7 @@ final class AssetDefinitionManager
             return;
         }
 
-        $this->loadDefinitionClass($definition);
+        $this->loadConcreteClass($definition);
     }
 
     /**
@@ -155,16 +149,15 @@ final class AssetDefinitionManager
     }
 
     /**
-     * Load asset definition class.
+     * Load asset concrete class.
      *
      * @param AssetDefinition $definition
      * @return void
      */
-    private function loadDefinitionClass(AssetDefinition $definition): void
+    private function loadConcreteClass(AssetDefinition $definition): void
     {
         $definition_fields = var_export($definition->fields, true);
         $class_str = <<<PHP
-<?php
 namespace Glpi\Asset;
 
 final class {$definition->getConcreteClassName(false)} extends Asset
@@ -178,22 +171,34 @@ final class {$definition->getConcreteClassName(false)} extends Asset
 }
 PHP;
 
-        $class_file = sprintf('%s/%s.php', $this->classes_dir, $definition->getID());
+        eval($class_str);
 
-        if (!file_exists($class_file) || sha1_file($class_file) !== sha1($class_str)) {
-            // (re)build file if it not exists or is not valid anymore.
-            if (!is_dir($this->classes_dir) && !mkdir($this->classes_dir)) {
-                throw new \RuntimeException(sprintf('Unable to create assets classes directory `%s`.', $this->classes_dir));
+        // As far as I search, `eval` cannot be disabled on PHP as it is not a function (like `include` or `echo`),
+        // unless it is done by some specific PHP extension (Suhosin was proposing this feature, but is not available anymore).
+        //
+        // The following code would generate a file that could then be included, in case `eval` fails, but as it cannot be tested,
+        // I think it is preferable to just remove it.
+        if (!class_exists($definition->getConcreteClassName(), false)) {
+            $class_str = '<?php' . "\n" . $class_str;
+
+            $classes_dir = GLPI_CACHE_DIR . '/assets';
+            $class_file = sprintf('%s/%s.php', $classes_dir, $definition->getID());
+
+            if (!file_exists($class_file) || sha1_file($class_file) !== sha1($class_str)) {
+                // (re)build file if it not exists or is not valid anymore.
+                if (!is_dir($classes_dir) && !mkdir($classes_dir, recursive: true)) {
+                    throw new \RuntimeException(sprintf('Unable to create assets classes directory `%s`.', $classes_dir));
+                }
+
+                if (
+                    (file_exists($class_file) && !is_writable($class_file))
+                    || file_put_contents($class_file, $class_str, LOCK_EX) !== strlen($class_str)
+                ) {
+                    throw new \RuntimeException(sprintf('Unable to create asset `%s` class file.', $definition->getName()));
+                }
             }
 
-            if (
-                (file_exists($class_file) && !is_writable($class_file))
-                || file_put_contents($class_file, $class_str, LOCK_EX) !== strlen($class_str)
-            ) {
-                throw new \RuntimeException(sprintf('Unable to create asset `%s` class file.', $definition->getName()));
-            }
+            include_once($class_file);
         }
-
-        include_once($class_file);
     }
 }
