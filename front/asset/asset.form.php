@@ -54,7 +54,7 @@ if (array_key_exists('id', $_REQUEST)) {
     $asset         = $classname !== null && class_exists($classname) ? new $classname() : null;
 }
 
-if ($asset === null ) {
+if ($asset === null) {
     Response::sendError(400, 'Bad request', Response::CONTENT_TYPE_TEXT_HTML);
 }
 
