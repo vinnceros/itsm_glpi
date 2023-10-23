@@ -37,13 +37,23 @@
  * @var array $CFG_GLPI
  */
 
-use Glpi\Asset\Asset;
-use Glpi\Event;
 use Glpi\Asset\AssetDefinition;
+use Glpi\Event;
+use Glpi\Http\Response;
 
 include('../../inc/includes.php');
 
-$asset = new Asset();
+$definition_fkey = AssetDefinition::getForeignKeyField();
+$definition_id   = $_GET[$definition_fkey] ?? null;
+$definition      = new AssetDefinition();
+$classname       = $definition->getFromDB($definition_id) ? $definition->getConcreteClassName() : null;
+
+if ($classname === null || !class_exists($classname)) {
+    Response::sendError(400, 'Bad request', Response::CONTENT_TYPE_TEXT_HTML);
+}
+
+/** @var \Glpi\Asset\Asset $asset */
+$asset = new $classname();
 
 if (isset($_POST['add'])) {
     $asset->check(-1, CREATE, $_POST);
@@ -51,7 +61,7 @@ if (isset($_POST['add'])) {
     if ($new_id = $asset->add($_POST)) {
         Event::log(
             $new_id,
-            Asset::class,
+            $asset::class,
             4,
             'inventory',
             sprintf(__('%1$s adds the item %2$s'), $_SESSION['glpiname'], $_POST['name'])
@@ -66,7 +76,7 @@ if (isset($_POST['add'])) {
     if ($asset->update($_POST)) {
         Event::log(
             $_POST['id'],
-            Asset::class,
+            $asset::class,
             4,
             'inventory',
             sprintf(__('%s updates an item'), $_SESSION['glpiname'])
@@ -78,7 +88,7 @@ if (isset($_POST['add'])) {
     if ($asset->delete($_POST)) {
         Event::log(
             $_POST['id'],
-            Asset::class,
+            $asset::class,
             4,
             'inventory',
             sprintf(__('%s deletes an item'), $_SESSION['glpiname'])
@@ -90,7 +100,7 @@ if (isset($_POST['add'])) {
     if ($asset->delete($_POST)) {
         Event::log(
             $_POST['id'],
-            Asset::class,
+            $asset::class,
             4,
             'inventory',
             sprintf(__('%s deletes an item'), $_SESSION['glpiname'])
@@ -102,7 +112,7 @@ if (isset($_POST['add'])) {
     if ($asset->restore($_POST, 1)) {
         Event::log(
             $_POST['id'],
-            Asset::class,
+            $asset::class,
             4,
             'inventory',
             sprintf(__('%s restores an item'), $_SESSION['glpiname'])
@@ -111,13 +121,6 @@ if (isset($_POST['add'])) {
     $asset->redirectToList();
 } else {
     $id = (int)($_GET['id'] ?? null);
-    $definition_fkey = AssetDefinition::getForeignKeyField();
-    $asset = new Asset();
-    if ($id > 0 && $asset->getFromDB($id)) {
-        $definition_id = $asset->fields[$definition_fkey];
-    } else {
-        $definition_id = $_GET[$definition_fkey] ?? 0;
-    }
-    $menus = ['assets', $definition_id];
-    Asset::displayFullPageForItem($id, $menus, [$definition_fkey => $definition_id]);
+    $menus = ['assets', $asset::class];
+    $asset->displayFullPageForItem($id, $menus, [$definition_fkey => $definition_id]);
 }

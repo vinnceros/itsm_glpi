@@ -33,6 +33,8 @@
  * ---------------------------------------------------------------------
  */
 
+use Glpi\Asset\AssetDefinitionManager;
+
 if (!defined('GLPI_ROOT')) {
     define('GLPI_ROOT', dirname(__DIR__));
 }
@@ -50,6 +52,9 @@ include_once(GLPI_ROOT . "/inc/db.function.php");
 
 // Standard includes
 include_once(GLPI_ROOT . "/inc/config.php");
+
+// Bootstrap assets
+AssetDefinitionManager::getInstance()->bootstrapAssets();
 
 // Security of PHP_SELF
 $_SERVER['PHP_SELF'] = Html::cleanParametersURL($_SERVER['PHP_SELF']);

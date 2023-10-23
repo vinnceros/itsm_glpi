@@ -38,36 +38,79 @@ namespace Glpi\Asset;
 use CommonDBTM;
 use Glpi\Application\View\TemplateRenderer;
 use Glpi\Plugin\Hooks;
-use Html;
 use Entity;
 use Plugin;
 use Session;
+use Toolbox;
 
-final class Asset extends CommonDBTM
+abstract class Asset extends CommonDBTM
 {
+    /**
+     * Get the asset definition related to concrete class.
+     *
+     * @return AssetDefinition
+     */
+    abstract protected static function getDefinition(): AssetDefinition;
+
+    public static function getTypeName($nb = 0)
+    {
+        return static::getDefinition()->getTranslatedName($nb);
+    }
+
+    public static function getIcon()
+    {
+        return static::getDefinition()->getAssetsIcon();
+    }
+
+    public static function getTable($classname = null)
+    {
+        if (is_a($classname ?? static::class, self::class, true)) {
+            return getTableForItemType(self::class);
+        }
+        return parent::getTable($classname);
+    }
+
+    public static function getSearchURL($full = true)
+    {
+        return Toolbox::getItemTypeSearchURL(self::class, $full)
+            . '?'
+            . AssetDefinition::getForeignKeyField()
+            . '='
+            . static::getDefinition()->getID();
+    }
+
+    public static function getFormURL($full = true)
+    {
+        return Toolbox::getItemTypeFormURL(self::class, $full)
+            . '?'
+            . AssetDefinition::getForeignKeyField()
+            . '='
+            . static::getDefinition()->getID();
+    }
+
     public static function canView()
     {
-        return self::hasGlobalRight(READ);
+        return static::hasGlobalRight(READ);
     }
 
     public static function canCreate()
     {
-        return self::hasGlobalRight(CREATE);
+        return static::hasGlobalRight(CREATE);
     }
 
     public static function canUpdate()
     {
-        return self::hasGlobalRight(UPDATE);
+        return static::hasGlobalRight(UPDATE);
     }
 
     public static function canDelete()
     {
-        return self::hasGlobalRight(DELETE);
+        return static::hasGlobalRight(DELETE);
     }
 
     public static function canPurge()
     {
-        return self::hasGlobalRight(PURGE);
+        return static::hasGlobalRight(PURGE);
     }
 
     /**
@@ -78,20 +121,7 @@ final class Asset extends CommonDBTM
      */
     private static function hasGlobalRight(int $right): bool
     {
-        // From a static call, we cannot know what AssetDefinition is supposed to be used.
-        //
-        // If AssetDefinition is defined in the request, we assume that rights checks is related to this definition,
-        // otherwise, for security reasons, we have to consider that user has not the required right.
-        //
-        // FIXME Find a better way to check rights.
-
-        $definition_id = (int)($_REQUEST[AssetDefinition::getForeignKeyField()] ?? null);
-        $definition = new AssetDefinition();
-        if ($definition_id > 0 && $definition->getFromDB($definition_id)) {
-            return $definition->hasRightOnAssets($right);
-        }
-
-        return false;
+        return static::getDefinition()->hasRightOnAssets($right);
     }
 
     public function canViewItem()
@@ -197,55 +227,13 @@ final class Asset extends CommonDBTM
         return $definition->hasRightOnAssets($right);
     }
 
-    public static function getMenuContent()
-    {
-        global $DB;
-
-        $menu = [];
-
-        $definitions_iterator = $DB->request([
-            'SELECT' => ['id'],
-            'FROM'   => AssetDefinition::getTable(),
-            'WHERE'  => [
-                'is_active' => 1,
-            ],
-        ]);
-
-        /* @var \Glpi\Asset\AssetDefinition $definition */
-        foreach (AssetDefinition::getFromIter($definitions_iterator) as $definition) {
-            if (!$definition->hasRightOnAssets(READ)) {
-                continue;
-            }
-
-            $definition_param = AssetDefinition::getForeignKeyField() . '=' . $definition->getID();
-
-            $links = [
-                'search' => self::getSearchURL(false) . '?' . $definition_param,
-            ];
-            if ($definition->hasRightOnAssets(CREATE)) {
-                $links['add'] = self::getFormUrl(false) . '?' . $definition_param;
-            }
-
-            $menu[$definition->getID()] = [
-                'title' => $definition->getTranslatedName(Session::getPluralNumber()),
-                'icon'  => $definition->getAssetsIcon(),
-                'page'  => $links['search'],
-                'links' => $links
-            ];
-        }
-
-        $menu['is_multi_entries'] = true;
-
-        return $menu;
-    }
-
     public function rawSearchOptions()
     {
-        $so = parent::rawSearchOptions();
+        $search_options = parent::rawSearchOptions();
 
         // TODO Search options
 
-        $so[] = [
+        $search_options[] = [
             'id'                 => '80',
             'table'              => 'glpi_entities',
             'field'              => 'completename',
@@ -253,7 +241,7 @@ final class Asset extends CommonDBTM
             'datatype'           => 'dropdown'
         ];
 
-        $so[] = [
+        $search_options[] = [
             'id'                 => '3',
             'table'              => $this->getTable(),
             'field'              => AssetDefinition::getForeignKeyField(),
@@ -263,26 +251,31 @@ final class Asset extends CommonDBTM
             'nodisplay'          => true,
         ];
 
-        return $so;
+        foreach ($search_options as &$search_option) {
+            if (
+                is_array($search_option)
+                && array_key_exists('table', $search_option)
+                && $search_option['table'] === $this->getTable()
+            ) {
+                // Search class could not be able to retrieve the concrete class when using `getItemTypeForTable()`,
+                // so we have to define an `itemtype` here.
+                $search_option['itemtype'] = static::class;
+            }
+        }
+
+        return $search_options;
     }
 
     public static function getSystemCriteria(): array
     {
-        // In search pages, definition
+        // In search pages, only items from current definition must be shown.
         return [
             [
                 'field'      => 3,
                 'searchtype' => 'equals',
-                'value'      => (int)($_REQUEST[AssetDefinition::getForeignKeyField()] ?? null)
+                'value'      => static::getDefinition()->getID()
             ]
         ];
-    }
-
-    public function redirectToList()
-    {
-        Html::redirect(
-            $this->getSearchURL() . '?' . AssetDefinition::getForeignKeyField() . '=' . $this->fields[AssetDefinition::getForeignKeyField()]
-        );
     }
 
     public function showForm($ID, array $options = [])

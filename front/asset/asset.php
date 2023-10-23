@@ -40,6 +40,15 @@ use Glpi\Search\SearchEngine;
 
 include('../../inc/includes.php');
 
+$definition_fkey = AssetDefinition::getForeignKeyField();
+$definition_id   = $_GET[$definition_fkey] ?? null;
+$definition      = new AssetDefinition();
+$classname       = $definition->getFromDB($definition_id) ? $definition->getConcreteClassName() : null;
+
+if ($classname === null || !class_exists($classname)) {
+    Response::sendError(400, 'Bad request', Response::CONTENT_TYPE_TEXT_HTML);
+}
+
 $definition_id = (int)($_GET[AssetDefinition::getForeignKeyField()] ?? null);
 $definition = new AssetDefinition();
 if (
@@ -54,13 +63,8 @@ if (!$definition->hasRightOnAssets(READ)) {
     exit();
 }
 
-Html::header(Asset::getTypeName(Session::getPluralNumber()), $_SERVER['PHP_SELF'], 'assets', $definition->getID());
+Html::header($classname::getTypeName(Session::getPluralNumber()), $_SERVER['PHP_SELF'], 'assets', $classname);
 
-SearchEngine::show(
-    Asset::class,
-    [
-        'target' => Asset::getSearchURL(false) . '?' . AssetDefinition::getForeignKeyField() . '=' . $definition->getID(),
-    ]
-);
+SearchEngine::show($classname);
 
 Html::footer();

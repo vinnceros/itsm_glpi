@@ -116,4 +116,18 @@ final class AssetDefinition extends CommonDBTM
 
         return $so;
     }
+
+    /**
+     * Get the definition's concerte asset class name.
+     *
+     * @param bool $with_namespace
+     * @return string|null
+     */
+    public function getConcreteClassName(bool $with_namespace = true): ?string
+    {
+        return sprintf(
+            ($with_namespace ? 'Glpi\\Asset\\' : '') . 'Asset%s',
+            $this->getID()
+        );
+    }
 }

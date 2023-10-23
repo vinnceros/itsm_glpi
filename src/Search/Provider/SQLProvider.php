@@ -150,9 +150,10 @@ final class SQLProvider implements SearchProviderInterface
 
         $opt_arrays = SearchOption::getOptionsForItemtype($itemtype);
         $opt = new SearchOption($opt_arrays[$ID]);
-        $table       = $opt["table"];
-        $field       = $opt["field"];
-        $is_virtual  = $opt->isVirtual();
+        $table        = $opt["table"];
+        $opt_itemtype = $opt['itemtype'] ?? getItemTypeForTable($table);
+        $field        = $opt["field"];
+        $is_virtual   = $opt->isVirtual();
 
         $addtable    = "";
         $addtable2   = "";
@@ -522,7 +523,7 @@ final class SQLProvider implements SearchProviderInterface
                 case "itemlink":
                     if ($meta || $opt->isForceGroupBy()) {
                         $TRANS = '';
-                        if (Session::haveTranslations(getItemTypeForTable($table), $field)) {
+                        if (Session::haveTranslations($opt_itemtype, $field)) {
                             $TRANS = QueryFunction::groupConcat(
                                 expression: QueryFunction::concat([
                                     QueryFunction::ifnull($tocomputetrans, new QueryExpression($DB::quoteValue(\Search::NULLVALUE))),
@@ -568,7 +569,7 @@ final class SQLProvider implements SearchProviderInterface
                     || $opt->isComputationGroupBy()))
         ) { // Not specific computation
             $TRANS = '';
-            if (Session::haveTranslations(getItemTypeForTable($table), $field)) {
+            if (Session::haveTranslations($opt_itemtype, $field)) {
                 $TRANS = QueryFunction::groupConcat(
                     expression: QueryFunction::concat([
                         QueryFunction::ifnull($tocomputetrans, new QueryExpression($DB::quoteValue(\Search::NULLVALUE))),
@@ -602,7 +603,7 @@ final class SQLProvider implements SearchProviderInterface
         $SELECT = [
             new QueryExpression($tocompute, $NAME),
         ];
-        if (Session::haveTranslations(getItemTypeForTable($table), $field)) {
+        if (Session::haveTranslations($opt_itemtype, $field)) {
             $SELECT[] = "$tocomputetrans AS {$NAME}_trans_{$field}";
         }
         return array_merge($SELECT, $ADDITONALFIELDS);
@@ -4426,7 +4427,7 @@ final class SQLProvider implements SearchProviderInterface
 
                 // Parse data
                 foreach ($newrow['raw'] as $key => $val) {
-                    if (preg_match('/ITEM(_(\w[^\d]+))?_(\d+)(_(.+))?/', $key, $matches)) {
+                    if (preg_match('/ITEM(_([\w\\\\]+))?_(\d+)(_(.+))?/', $key, $matches)) {
                         $j = $matches[3];
                         if (isset($matches[2]) && !empty($matches[2])) {
                             $j = $matches[2] . '_' . $matches[3];
@@ -4759,9 +4760,10 @@ final class SQLProvider implements SearchProviderInterface
         );
 
         if (isset($so["table"])) {
-            $table     = $so["table"];
-            $field     = $so["field"];
-            $linkfield = $so["linkfield"];
+            $table        = $so["table"];
+            $field        = $so["field"];
+            $linkfield    = $so["linkfield"];
+            $opt_itemtype = $so['itemtype'] ?? getItemTypeForTable($table);
 
             /// TODO try to clean all specific cases using SpecificToDisplay
 
@@ -4999,7 +5001,7 @@ final class SQLProvider implements SearchProviderInterface
                     break;
                 case $table . ".completename":
                     if (
-                        $itemtype != getItemTypeForTable($table)
+                        $itemtype != $opt_itemtype
                         && $data[$ID][0]['name'] != null //column have value in DB
                         && !$_SESSION['glpiuse_flat_dropdowntree_on_search_result'] //user doesn't want the completename
                     ) {
@@ -5174,7 +5176,7 @@ final class SQLProvider implements SearchProviderInterface
                             return $out;
                         }
 
-                        $itemtype = getItemTypeForTable($table);
+                        $itemtype = $opt_itemtype;
                         $item = new $itemtype();
                         $item->getFromDB($data['id']);
                         $percentage  = 0;
@@ -5438,7 +5440,7 @@ final class SQLProvider implements SearchProviderInterface
 
                         // Add tooltip
                         $id = $data[$ID][0]['id'];
-                        $itemtype = getItemTypeForTable($table);
+                        $itemtype = $opt_itemtype;
 
                         $out     = sprintf(
                             __('%1$s %2$s'),
@@ -5681,7 +5683,7 @@ final class SQLProvider implements SearchProviderInterface
         if (isset($so["datatype"])) {
             switch ($so["datatype"]) {
                 case "itemlink":
-                    $linkitemtype  = getItemTypeForTable($so["table"]);
+                    $linkitemtype  = $so['itemtype'] ?? getItemTypeForTable($so["table"]);
 
                     $out           = "";
                     $count_display = 0;
@@ -6006,8 +6008,8 @@ HTML;
             }
         };
         if (isset($table) && isset($field)) {
-            $itemtype = getItemTypeForTable($table);
-            if ($item = getItemForItemtype($itemtype)) {
+            $opt_itemtype = $so['itemtype'] ?? getItemTypeForTable($table);
+            if ($item = getItemForItemtype($opt_itemtype)) {
                 if ($aggregate) {
                     $tmpdata = [
                         'values'     => [],
